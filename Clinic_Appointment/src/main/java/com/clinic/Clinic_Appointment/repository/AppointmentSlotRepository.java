@@ -2,15 +2,16 @@ package com.clinic.Clinic_Appointment.repository;
 
 import com.clinic.Clinic_Appointment.model.AppointmentSlot;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
-@Repository
 public interface AppointmentSlotRepository extends JpaRepository<AppointmentSlot, Long> {
 
     List<AppointmentSlot> findByDoctorIdAndSlotDate(Long doctorId, LocalDate slotDate);
 
-    boolean existsByDoctorIdAndSlotDateAndStartTime(Long doctorId, LocalDate slotDate, java.time.LocalTime startTime);
+    // Used to prevent double-booking: checks if a slot exists at that time that is already taken
+    boolean existsByDoctorIdAndSlotDateAndStartTimeAndIsAvailableFalse(
+            Long doctorId, LocalDate slotDate, LocalTime startTime);
 }
+

@@ -1,10 +1,13 @@
 package com.clinic.Clinic_Appointment.dto;
 
-import jakarta.validation.constraints.*;
-
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 // ── Patient ──────────────────────────────────────────────────────────────────
@@ -119,46 +122,6 @@ public class Dto {
         public LocalTime getWorkingHoursEnd() { return workingHoursEnd; }
     }
 
-    // ── Slots ────────────────────────────────────────────────────────────────
-
-    public static class GenerateSlotsRequest {
-        @NotNull(message = "Date is required")
-        @FutureOrPresent(message = "Date must not be in the past")
-        private LocalDate date;
-
-        @NotNull(message = "Slot duration in minutes is required")
-        @Min(value = 10, message = "Slot duration must be at least 10 minutes")
-        private Integer slotDurationMinutes;
-
-        public LocalDate getDate() { return date; }
-        public void setDate(LocalDate date) { this.date = date; }
-
-        public Integer getSlotDurationMinutes() { return slotDurationMinutes; }
-        public void setSlotDurationMinutes(Integer slotDurationMinutes) { this.slotDurationMinutes = slotDurationMinutes; }
-    }
-
-    public static class SlotResponse {
-        private Long slotId;
-        private LocalDate date;
-        private LocalTime startTime;
-        private LocalTime endTime;
-        private boolean available;
-
-        public SlotResponse(Long slotId, LocalDate date, LocalTime startTime, LocalTime endTime, boolean available) {
-            this.slotId = slotId;
-            this.date = date;
-            this.startTime = startTime;
-            this.endTime = endTime;
-            this.available = available;
-        }
-
-        public Long getSlotId() { return slotId; }
-        public LocalDate getDate() { return date; }
-        public LocalTime getStartTime() { return startTime; }
-        public LocalTime getEndTime() { return endTime; }
-        public boolean isAvailable() { return available; }
-    }
-
     // ── Appointment ──────────────────────────────────────────────────────────
 
     public static class BookAppointmentRequest {
@@ -168,8 +131,12 @@ public class Dto {
         @NotNull(message = "Doctor ID is required")
         private Long doctorId;
 
-        @NotNull(message = "Slot ID is required")
-        private Long slotId;
+        @NotNull(message = "Appointment date is required")
+        @FutureOrPresent(message = "Appointment date must not be in the past")
+        private LocalDate date;
+
+        @NotNull(message = "Appointment time is required")
+        private LocalTime startTime;
 
         public Long getPatientId() { return patientId; }
         public void setPatientId(Long patientId) { this.patientId = patientId; }
@@ -177,16 +144,26 @@ public class Dto {
         public Long getDoctorId() { return doctorId; }
         public void setDoctorId(Long doctorId) { this.doctorId = doctorId; }
 
-        public Long getSlotId() { return slotId; }
-        public void setSlotId(Long slotId) { this.slotId = slotId; }
+        public LocalDate getDate() { return date; }
+        public void setDate(LocalDate date) { this.date = date; }
+
+        public LocalTime getStartTime() { return startTime; }
+        public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
     }
 
     public static class RescheduleRequest {
-        @NotNull(message = "New slot ID is required")
-        private Long newSlotId;
+        @NotNull(message = "New date is required")
+        @FutureOrPresent(message = "New date must not be in the past")
+        private LocalDate newDate;
 
-        public Long getNewSlotId() { return newSlotId; }
-        public void setNewSlotId(Long newSlotId) { this.newSlotId = newSlotId; }
+        @NotNull(message = "New start time is required")
+        private LocalTime newStartTime;
+
+        public LocalDate getNewDate() { return newDate; }
+        public void setNewDate(LocalDate newDate) { this.newDate = newDate; }
+
+        public LocalTime getNewStartTime() { return newStartTime; }
+        public void setNewStartTime(LocalTime newStartTime) { this.newStartTime = newStartTime; }
     }
 
     public static class AppointmentResponse {

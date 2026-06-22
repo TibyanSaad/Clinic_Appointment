@@ -1,6 +1,5 @@
 package com.clinic.Clinic_Appointment.service;
 
-import com.clinic.Clinic_Appointment.dto.Dto;
 import com.clinic.Clinic_Appointment.exception.GlobalExceptionHandler.*;
 import com.clinic.Clinic_Appointment.model.AppointmentSlot;
 import com.clinic.Clinic_Appointment.model.Doctor;
@@ -10,12 +9,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class SlotService {
+
+    private static final int SLOT_DURATION_MINUTES = 30;
 
     private final AppointmentSlotRepository slotRepository;
     private final DoctorService doctorService;
@@ -25,43 +24,43 @@ public class SlotService {
         this.doctorService = doctorService;
     }
 
+    /**
+     * Creates a slot on the spot when a patient books an appointment.
+     * Validates the requested time falls within the doctor's working hours
+     * and that no active slot already exists at that time for that doctor.
+     */
     @Transactional
-    public List<Dto.SlotResponse> generateSlots(Long doctorId, Dto.GenerateSlotsRequest request) {
-        Doctor doctor = doctorService.findById(doctorId);
-        LocalDate date = request.getDate();
-        int durationMinutes = request.getSlotDurationMinutes();
+    public AppointmentSlot createSlot(Doctor doctor, LocalDate date, LocalTime startTime) {
+        LocalTime endTime = startTime.plusMinutes(SLOT_DURATION_MINUTES);
 
-        List<AppointmentSlot> created = new ArrayList<>();
-        LocalTime current = doctor.getWorkingHoursStart();
-
-        while (current.plusMinutes(durationMinutes).compareTo(doctor.getWorkingHoursEnd()) <= 0) {
-            LocalTime slotEnd = current.plusMinutes(durationMinutes);
-
-            // Skip if slot already exists for this doctor/date/time
-            if (!slotRepository.existsByDoctorIdAndSlotDateAndStartTime(doctorId, date, current)) {
-                AppointmentSlot slot = new AppointmentSlot();
-                slot.setDoctor(doctor);
-                slot.setSlotDate(date);
-                slot.setStartTime(current);
-                slot.setEndTime(slotEnd);
-                slot.setAvailable(true);
-                created.add(slotRepository.save(slot));
-            }
-
-            current = current.plusMinutes(durationMinutes);
+        // Must fit within doctor's working hours
+        if (startTime.isBefore(doctor.getWorkingHoursStart()) || endTime.isAfter(doctor.getWorkingHoursEnd())) {
+            throw new BadRequestException(
+                    "Requested time " + startTime + " is outside the doctor's working hours ("
+                            + doctor.getWorkingHoursStart() + " - " + doctor.getWorkingHoursEnd() + ")"
+            );
         }
 
-        if (created.isEmpty()) {
-            throw new ConflictException("All slots for this date already exist or no time fits the working hours");
+        // Doctor cannot be double-booked at the same time on the same day
+        if (slotRepository.existsByDoctorIdAndSlotDateAndStartTimeAndIsAvailableFalse(
+                doctor.getId(), date, startTime)) {
+            throw new ConflictException(
+                    "Doctor already has a booked appointment at " + startTime + " on " + date
+            );
         }
 
-        return created.stream().map(this::toResponse).collect(Collectors.toList());
+        AppointmentSlot slot = new AppointmentSlot();
+        slot.setDoctor(doctor);
+        slot.setSlotDate(date);
+        slot.setStartTime(startTime);
+        slot.setEndTime(endTime);
+        slot.setAvailable(false); // immediately unavailable — it's being booked right now
+
+        return slotRepository.save(slot);
     }
 
-    public List<Dto.SlotResponse> getSlotsForDoctor(Long doctorId, LocalDate date) {
-        doctorService.findById(doctorId); // validate doctor exists
-        return slotRepository.findByDoctorIdAndSlotDate(doctorId, date)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+    public List<AppointmentSlot> getSlotsForDoctorOnDate(Long doctorId, LocalDate date) {
+        return slotRepository.findByDoctorIdAndSlotDate(doctorId, date);
     }
 
     public AppointmentSlot findById(Long slotId) {
@@ -69,20 +68,13 @@ public class SlotService {
                 .orElseThrow(() -> new NotFoundException("Slot not found with ID: " + slotId));
     }
 
-    public void markUnavailable(AppointmentSlot slot) {
-        slot.setAvailable(false);
-        slotRepository.save(slot);
-    }
-
     public void markAvailable(AppointmentSlot slot) {
         slot.setAvailable(true);
         slotRepository.save(slot);
     }
 
-    private Dto.SlotResponse toResponse(AppointmentSlot slot) {
-        return new Dto.SlotResponse(
-                slot.getId(), slot.getSlotDate(), slot.getStartTime(),
-                slot.getEndTime(), slot.isAvailable()
-        );
+    public void markUnavailable(AppointmentSlot slot) {
+        slot.setAvailable(false);
+        slotRepository.save(slot);
     }
 }

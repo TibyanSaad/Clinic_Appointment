@@ -37,43 +37,27 @@ public class AppointmentService {
     public Dto.AppointmentResponse bookAppointment(Dto.BookAppointmentRequest request) {
         Patient patient = patientService.findById(request.getPatientId());
         Doctor doctor = doctorService.findById(request.getDoctorId());
-        AppointmentSlot slot = slotService.findById(request.getSlotId());
 
-        // Validate slot belongs to the same doctor
-        if (!slot.getDoctor().getId().equals(doctor.getId())) {
-            throw new BadRequestException("Slot does not belong to the specified doctor");
-        }
-
-        // Validate slot is available
-        if (!slot.isAvailable()) {
-            throw new ConflictException("This slot is already booked");
-        }
-
-        // Validate slot is not in the past
-        if (slot.getSlotDate().isBefore(LocalDate.now())) {
-            throw new BadRequestException("Cannot book a slot in the past");
-        }
-
-        // Validate patient doesn't already have an active appointment with this doctor on the same day
+        // Check patient doesn't already have an active appointment with this doctor on this day
         boolean alreadyBooked = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
-                patient.getId(), doctor.getId(), slot.getSlotDate()
+                patient.getId(), doctor.getId(), request.getDate()
         );
         if (alreadyBooked) {
-            throw new ConflictException("Patient already has an active appointment with this doctor on " + slot.getSlotDate());
+            throw new ConflictException(
+                    "Patient already has an active appointment with this doctor on " + request.getDate()
+            );
         }
 
-        // Create the appointment
+        // Create the slot on the spot (validates working hours + doctor double-booking inside)
+        AppointmentSlot slot = slotService.createSlot(doctor, request.getDate(), request.getStartTime());
+
         Appointment appointment = new Appointment();
         appointment.setPatient(patient);
         appointment.setDoctor(doctor);
         appointment.setSlot(slot);
         appointment.setStatus(Appointment.Status.SCHEDULED);
 
-        // Mark slot as unavailable
-        slotService.markUnavailable(slot);
-
-        Appointment saved = appointmentRepository.save(appointment);
-        return toResponse(saved);
+        return toResponse(appointmentRepository.save(appointment));
     }
 
     @Transactional
@@ -81,16 +65,17 @@ public class AppointmentService {
         Appointment appointment = findById(appointmentId);
 
         if (appointment.getStatus() != Appointment.Status.SCHEDULED) {
-            throw new BadRequestException("Only SCHEDULED appointments can be cancelled. Current status: " + appointment.getStatus());
+            throw new BadRequestException(
+                    "Only SCHEDULED appointments can be cancelled. Current status: " + appointment.getStatus()
+            );
         }
 
         appointment.setStatus(Appointment.Status.CANCELLED);
 
-        // Free up the slot
+        // Free the slot so it can be reused if someone else books that time
         slotService.markAvailable(appointment.getSlot());
 
-        Appointment saved = appointmentRepository.save(appointment);
-        return toResponse(saved);
+        return toResponse(appointmentRepository.save(appointment));
     }
 
     @Transactional
@@ -98,53 +83,44 @@ public class AppointmentService {
         Appointment oldAppointment = findById(appointmentId);
 
         if (oldAppointment.getStatus() != Appointment.Status.SCHEDULED) {
-            throw new BadRequestException("Only SCHEDULED appointments can be rescheduled. Current status: " + oldAppointment.getStatus());
+            throw new BadRequestException(
+                    "Only SCHEDULED appointments can be rescheduled. Current status: " + oldAppointment.getStatus()
+            );
         }
 
-        AppointmentSlot newSlot = slotService.findById(request.getNewSlotId());
+        Doctor doctor = oldAppointment.getDoctor();
 
-        // Validate new slot belongs to same doctor
-        if (!newSlot.getDoctor().getId().equals(oldAppointment.getDoctor().getId())) {
-            throw new BadRequestException("New slot must belong to the same doctor");
-        }
-
-        // Validate new slot is available
-        if (!newSlot.isAvailable()) {
-            throw new ConflictException("The requested new slot is not available");
-        }
-
-        // Validate new slot is not in the past
-        if (newSlot.getSlotDate().isBefore(LocalDate.now())) {
-            throw new BadRequestException("Cannot reschedule to a slot in the past");
-        }
-
-        // Validate patient doesn't have another active appointment with same doctor on new slot's date
-        // (excluding the current appointment being rescheduled)
-        boolean alreadyBooked = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
-                oldAppointment.getPatient().getId(), oldAppointment.getDoctor().getId(), newSlot.getSlotDate()
-        );
-        // Only block if the conflict is NOT the same day as the old slot (since we're moving away)
-        if (alreadyBooked && !newSlot.getSlotDate().equals(oldAppointment.getSlot().getSlotDate())) {
-            throw new ConflictException("Patient already has an active appointment with this doctor on " + newSlot.getSlotDate());
+        // Check patient doesn't already have an active appointment with same doctor on the new day
+        // (only matters if they're moving to a different date)
+        boolean movingToNewDate = !request.getNewDate().equals(oldAppointment.getSlot().getSlotDate());
+        if (movingToNewDate) {
+            boolean conflict = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
+                    oldAppointment.getPatient().getId(), doctor.getId(), request.getNewDate()
+            );
+            if (conflict) {
+                throw new ConflictException(
+                        "Patient already has an active appointment with this doctor on " + request.getNewDate()
+                );
+            }
         }
 
         // Mark old appointment as RESCHEDULED and free its slot
         oldAppointment.setStatus(Appointment.Status.RESCHEDULED);
         slotService.markAvailable(oldAppointment.getSlot());
 
-        // Create new appointment
+        // Create a new slot on the spot for the new time (validates working hours + double-booking)
+        AppointmentSlot newSlot = slotService.createSlot(doctor, request.getNewDate(), request.getNewStartTime());
+
+        // Create the new appointment
         Appointment newAppointment = new Appointment();
         newAppointment.setPatient(oldAppointment.getPatient());
-        newAppointment.setDoctor(oldAppointment.getDoctor());
+        newAppointment.setDoctor(doctor);
         newAppointment.setSlot(newSlot);
         newAppointment.setStatus(Appointment.Status.SCHEDULED);
 
-        // Mark new slot as unavailable
-        slotService.markUnavailable(newSlot);
-
         Appointment savedNew = appointmentRepository.save(newAppointment);
 
-        // Link old appointment to the new one for history
+        // Link old → new for history tracking
         oldAppointment.setRescheduledTo(savedNew);
         appointmentRepository.save(oldAppointment);
 
@@ -156,35 +132,33 @@ public class AppointmentService {
         Appointment appointment = findById(appointmentId);
 
         if (appointment.getStatus() != Appointment.Status.SCHEDULED) {
-            throw new BadRequestException("Only SCHEDULED appointments can be marked completed. Current status: " + appointment.getStatus());
+            throw new BadRequestException(
+                    "Only SCHEDULED appointments can be marked as completed. Current status: " + appointment.getStatus()
+            );
         }
 
         appointment.setStatus(Appointment.Status.COMPLETED);
-        Appointment saved = appointmentRepository.save(appointment);
-        return toResponse(saved);
+        return toResponse(appointmentRepository.save(appointment));
     }
 
     public List<Dto.ScheduleSlotResponse> getDoctorSchedule(Long doctorId, LocalDate date) {
         doctorService.findById(doctorId); // validate doctor exists
-        List<AppointmentSlot> slots = slotRepository.findByDoctorIdAndSlotDate(doctorId, date);
+
+        List<AppointmentSlot> slots = slotService.getSlotsForDoctorOnDate(doctorId, date);
 
         return slots.stream().map(slot -> {
-            // Find active appointment for this slot (if any)
-            Appointment active = appointmentRepository.findAll().stream()
-                    .filter(a -> a.getSlot().getId().equals(slot.getId())
-                            && a.getStatus() == Appointment.Status.SCHEDULED)
-                    .findFirst().orElse(null);
+            Appointment active = appointmentRepository.findScheduledBySlotId(slot.getId()).orElse(null);
 
             String patientName = null;
-            Long appointmentId = null;
+            Long apptId = null;
             if (active != null) {
                 patientName = active.getPatient().getFirstName() + " " + active.getPatient().getLastName();
-                appointmentId = active.getId();
+                apptId = active.getId();
             }
 
             return new Dto.ScheduleSlotResponse(
                     slot.getId(), slot.getStartTime(), slot.getEndTime(),
-                    slot.isAvailable(), appointmentId, patientName
+                    slot.isAvailable(), apptId, patientName
             );
         }).collect(Collectors.toList());
     }

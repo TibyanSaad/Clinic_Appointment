@@ -4,15 +4,14 @@ import com.clinic.Clinic_Appointment.model.Appointment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
-@Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    // Check if patient already has an active appointment with same doctor on same day
+    // Check if a patient already has an active (SCHEDULED) appointment with the same doctor on the same day
     @Query("""
         SELECT COUNT(a) > 0 FROM Appointment a
         WHERE a.patient.id = :patientId
@@ -21,12 +20,20 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
         AND a.status = 'SCHEDULED'
     """)
     boolean existsActiveAppointmentForPatientAndDoctorOnDate(
-        @Param("patientId") Long patientId,
-        @Param("doctorId") Long doctorId,
-        @Param("date") LocalDate date
+            @Param("patientId") Long patientId,
+            @Param("doctorId") Long doctorId,
+            @Param("date") LocalDate date
     );
 
-    // Get all past completed visits for a patient
+    // Find the active (SCHEDULED) appointment for a given slot — used for schedule view
+    @Query("""
+        SELECT a FROM Appointment a
+        WHERE a.slot.id = :slotId
+        AND a.status = 'SCHEDULED'
+    """)
+    Optional<Appointment> findScheduledBySlotId(@Param("slotId") Long slotId);
+
+    // Full visit history for a patient (completed appointments only)
     @Query("""
         SELECT a FROM Appointment a
         WHERE a.patient.id = :patientId

@@ -1,14 +1,14 @@
 package com.clinic.Clinic_Appointment.controller;
 
 import com.clinic.Clinic_Appointment.dto.Dto;
+import com.clinic.Clinic_Appointment.service.AppointmentService;
 import com.clinic.Clinic_Appointment.service.DoctorService;
-import com.clinic.Clinic_Appointment.service.SlotService;
-import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,13 +17,10 @@ import java.util.List;
 public class DoctorController {
 
     private final DoctorService doctorService;
-    private final SlotService slotService;
-    private final com.clinic.Clinic_Appointment.service.AppointmentService appointmentService;
+    private final AppointmentService appointmentService;
 
-    public DoctorController(DoctorService doctorService, SlotService slotService,
-                            com.clinic.Clinic_Appointment.service.AppointmentService appointmentService) {
+    public DoctorController(DoctorService doctorService, AppointmentService appointmentService) {
         this.doctorService = doctorService;
-        this.slotService = slotService;
         this.appointmentService = appointmentService;
     }
 
@@ -35,20 +32,6 @@ public class DoctorController {
     @GetMapping("/{doctorId}")
     public ResponseEntity<Dto.DoctorResponse> getDoctor(@PathVariable Long doctorId) {
         return ResponseEntity.ok(doctorService.getDoctor(doctorId));
-    }
-
-    @PostMapping("/{doctorId}/slots")
-    public ResponseEntity<List<Dto.SlotResponse>> generateSlots(
-            @PathVariable Long doctorId,
-            @Valid @RequestBody Dto.GenerateSlotsRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(slotService.generateSlots(doctorId, request));
-    }
-
-    @GetMapping("/{doctorId}/slots")
-    public ResponseEntity<List<Dto.SlotResponse>> getSlots(
-            @PathVariable Long doctorId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(slotService.getSlotsForDoctor(doctorId, date));
     }
 
     @GetMapping("/{doctorId}/schedule")
