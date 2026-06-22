@@ -9,11 +9,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class AppointmentService {
+
+    private static final int SLOT_DURATION_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
     private final AppointmentSlotRepository slotRepository;
@@ -38,18 +41,42 @@ public class AppointmentService {
         Patient patient = patientService.findById(request.getPatientId());
         Doctor doctor = doctorService.findById(request.getDoctorId());
 
+        LocalDate date = request.getDate();
+        LocalTime startTime = request.getStartTime();
+        LocalTime endTime = startTime.plusMinutes(SLOT_DURATION_MINUTES);
+
         // Check patient doesn't already have an active appointment with this doctor on this day
-        boolean alreadyBooked = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
-                patient.getId(), doctor.getId(), request.getDate()
+        boolean alreadyBookedSameDoctor = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
+                patient.getId(), doctor.getId(), date
         );
-        if (alreadyBooked) {
+        if (alreadyBookedSameDoctor) {
             throw new ConflictException(
-                    "Patient already has an active appointment with this doctor on " + request.getDate()
+                    "Patient already has an active appointment with this doctor on " + date
             );
         }
 
-        // Create the slot on the spot (validates working hours + doctor double-booking inside)
-        AppointmentSlot slot = slotService.createSlot(doctor, request.getDate(), request.getStartTime());
+        // Check doctor is not already busy in this time range
+        boolean doctorBusy = slotRepository.existsDoctorOverlappingSlot(
+                doctor.getId(), date, startTime, endTime
+        );
+        if (doctorBusy) {
+            throw new ConflictException(
+                    "Doctor is already booked between " + startTime + " and " + endTime + " on " + date
+            );
+        }
+
+        // Check patient is not already busy with another doctor in this time range
+        boolean patientBusy = slotRepository.existsPatientOverlappingAppointment(
+                patient.getId(), date, startTime, endTime
+        );
+        if (patientBusy) {
+            throw new ConflictException(
+                    "Patient already has an appointment with another doctor between " + startTime + " and " + endTime + " on " + date
+            );
+        }
+
+        // All checks passed — create slot and book appointment
+        AppointmentSlot slot = slotService.createSlot(doctor, date, startTime);
 
         Appointment appointment = new Appointment();
         appointment.setPatient(patient);
@@ -71,8 +98,6 @@ public class AppointmentService {
         }
 
         appointment.setStatus(Appointment.Status.CANCELLED);
-
-        // Free the slot so it can be reused if someone else books that time
         slotService.markAvailable(appointment.getSlot());
 
         return toResponse(appointmentRepository.save(appointment));
@@ -89,38 +114,60 @@ public class AppointmentService {
         }
 
         Doctor doctor = oldAppointment.getDoctor();
+        Patient patient = oldAppointment.getPatient();
+
+        LocalDate newDate = request.getNewDate();
+        LocalTime newStartTime = request.getNewStartTime();
+        LocalTime newEndTime = newStartTime.plusMinutes(SLOT_DURATION_MINUTES);
 
         // Check patient doesn't already have an active appointment with same doctor on the new day
-        // (only matters if they're moving to a different date)
-        boolean movingToNewDate = !request.getNewDate().equals(oldAppointment.getSlot().getSlotDate());
+        boolean movingToNewDate = !newDate.equals(oldAppointment.getSlot().getSlotDate());
         if (movingToNewDate) {
             boolean conflict = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
-                    oldAppointment.getPatient().getId(), doctor.getId(), request.getNewDate()
+                    patient.getId(), doctor.getId(), newDate
             );
             if (conflict) {
                 throw new ConflictException(
-                        "Patient already has an active appointment with this doctor on " + request.getNewDate()
+                        "Patient already has an active appointment with this doctor on " + newDate
                 );
             }
+        }
+
+        // Check doctor is not already busy in the new time range
+        boolean doctorBusy = slotRepository.existsDoctorOverlappingSlot(
+                doctor.getId(), newDate, newStartTime, newEndTime
+        );
+        if (doctorBusy) {
+            throw new ConflictException(
+                    "Doctor is already booked between " + newStartTime + " and " + newEndTime + " on " + newDate
+            );
+        }
+
+        // Check patient is not already busy with another doctor in the new time range
+        boolean patientBusy = slotRepository.existsPatientOverlappingAppointment(
+                patient.getId(), newDate, newStartTime, newEndTime
+        );
+        if (patientBusy) {
+            throw new ConflictException(
+                    "Patient already has an appointment with another doctor between " + newStartTime + " and " + newEndTime + " on " + newDate
+            );
         }
 
         // Mark old appointment as RESCHEDULED and free its slot
         oldAppointment.setStatus(Appointment.Status.RESCHEDULED);
         slotService.markAvailable(oldAppointment.getSlot());
 
-        // Create a new slot on the spot for the new time (validates working hours + double-booking)
-        AppointmentSlot newSlot = slotService.createSlot(doctor, request.getNewDate(), request.getNewStartTime());
+        // Create new slot and appointment
+        AppointmentSlot newSlot = slotService.createSlot(doctor, newDate, newStartTime);
 
-        // Create the new appointment
         Appointment newAppointment = new Appointment();
-        newAppointment.setPatient(oldAppointment.getPatient());
+        newAppointment.setPatient(patient);
         newAppointment.setDoctor(doctor);
         newAppointment.setSlot(newSlot);
         newAppointment.setStatus(Appointment.Status.SCHEDULED);
 
         Appointment savedNew = appointmentRepository.save(newAppointment);
 
-        // Link old → new for history tracking
         oldAppointment.setRescheduledTo(savedNew);
         appointmentRepository.save(oldAppointment);
 
@@ -142,7 +189,7 @@ public class AppointmentService {
     }
 
     public List<Dto.ScheduleSlotResponse> getDoctorSchedule(Long doctorId, LocalDate date) {
-        doctorService.findById(doctorId); // validate doctor exists
+        doctorService.findById(doctorId);
 
         List<AppointmentSlot> slots = slotService.getSlotsForDoctorOnDate(doctorId, date);
 

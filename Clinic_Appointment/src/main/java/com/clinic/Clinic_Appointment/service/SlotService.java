@@ -24,11 +24,6 @@ public class SlotService {
         this.doctorService = doctorService;
     }
 
-    /**
-     * Creates a slot on the spot when a patient books an appointment.
-     * Validates the requested time falls within the doctor's working hours
-     * and that no active slot already exists at that time for that doctor.
-     */
     @Transactional
     public AppointmentSlot createSlot(Doctor doctor, LocalDate date, LocalTime startTime) {
         LocalTime endTime = startTime.plusMinutes(SLOT_DURATION_MINUTES);
@@ -41,20 +36,15 @@ public class SlotService {
             );
         }
 
-        // Doctor cannot be double-booked at the same time on the same day
-        if (slotRepository.existsByDoctorIdAndSlotDateAndStartTimeAndIsAvailableFalse(
-                doctor.getId(), date, startTime)) {
-            throw new ConflictException(
-                    "Doctor already has a booked appointment at " + startTime + " on " + date
-            );
-        }
-
+        // All conflict checks (doctor overlap, patient overlap) are handled
+        // in AppointmentService before this method is called.
+        // This method only creates and saves the slot.
         AppointmentSlot slot = new AppointmentSlot();
         slot.setDoctor(doctor);
         slot.setSlotDate(date);
         slot.setStartTime(startTime);
         slot.setEndTime(endTime);
-        slot.setAvailable(false); // immediately unavailable — it's being booked right now
+        slot.setAvailable(false);
 
         return slotRepository.save(slot);
     }
