@@ -179,15 +179,47 @@ http://localhost:8080/patients/1/history
 ```json
 [
   {
-    "visitId": 1,
-    "appointmentId": 3,
-    "patientId": 1,
-    "patientName": "Ahmed Al-Balushi",
-    "visitDate": "2026-07-10",
-    "diagnosis": "Hypertension Stage 1",
-    "prescription": "Amlodipine 5mg once daily for 30 days",
-    "recordedAt": "2026-07-10T11:45:00"
-  }
+    "appointmentId": 6,
+    "status": "SCHEDULED",
+    "appointmentDate": "2026-07-15",
+    "startTime": "10:30:00",
+    "endTime": "11:00:00",
+    "doctorName": "Mohammed Al-Balushi",
+    "doctorSpeciality": "Ear, Nose and Throat",
+    "rescheduledToAppointmentId": null,
+    "visitId": null,
+    "diagnosis": null,
+    "prescription": null,
+    "recordedAt": null
+  },
+  {
+    "appointmentId": 1,
+    "status": "CANCELLED",
+    "appointmentDate": "2026-07-10",
+    "startTime": "10:00:00",
+    "endTime": "10:30:00",
+    "doctorName": "Sarah Al-Rashdi",
+    "doctorSpeciality": "Cardiology",
+    "rescheduledToAppointmentId": null,
+    "visitId": null,
+    "diagnosis": null,
+    "prescription": null,
+    "recordedAt": null
+  },
+  {
+    "appointmentId": 2,
+    "status": "RESCHEDULED",
+    "appointmentDate": "2026-07-10",
+    "startTime": "10:30:00",
+    "endTime": "11:00:00",
+    "doctorName": "Sarah Al-Rashdi",
+    "doctorSpeciality": "Cardiology",
+    "rescheduledToAppointmentId": 3,
+    "visitId": null,
+    "diagnosis": null,
+    "prescription": null,
+    "recordedAt": null
+  },
 ]
 ```
 

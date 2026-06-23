@@ -98,6 +98,7 @@ public class Dto {
         public LocalTime getWorkingHoursEnd() { return workingHoursEnd; }
         public void setWorkingHoursEnd(LocalTime workingHoursEnd) { this.workingHoursEnd = workingHoursEnd; }
     }
+
     // POST /doctors & GET /doctors/{id}
     public static class DoctorResponse {
         private Long id;
@@ -127,7 +128,7 @@ public class Dto {
 
     // ── Appointment ──────────────────────────────────────────────────────────
 
-    //POST /appointments
+    // POST /appointments
     public static class BookAppointmentRequest {
         @NotNull(message = "Patient ID is required")
         private Long patientId;
@@ -155,7 +156,7 @@ public class Dto {
         public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
     }
 
-    //POST /appointments/{id}/reschedule
+    // POST /appointments/{id}/reschedule
     public static class RescheduleRequest {
         @NotNull(message = "New date is required")
         @FutureOrPresent(message = "New date must not be in the past")
@@ -170,6 +171,7 @@ public class Dto {
         public LocalTime getNewStartTime() { return newStartTime; }
         public void setNewStartTime(LocalTime newStartTime) { this.newStartTime = newStartTime; }
     }
+
     // POST /appointments, POST /appointments/{id}/cancel, POST /appointments/{id}/reschedule & POST /appointments/{id}/complete
     public static class AppointmentResponse {
         private Long appointmentId;
@@ -225,7 +227,8 @@ public class Dto {
         public String getPrescription() { return prescription; }
         public void setPrescription(String prescription) { this.prescription = prescription; }
     }
-    // POST /appointments/{id}/visit & GET /patients/{id}/history
+
+    // POST /appointments/{id}/visit
     public static class VisitRecordResponse {
         private Long visitId;
         private Long appointmentId;
@@ -261,7 +264,7 @@ public class Dto {
 
     // ── Schedule ─────────────────────────────────────────────────────────────
 
-    //GET /doctors/{id}/schedule?date=
+    // GET /doctors/{id}/schedule?date=
     public static class ScheduleSlotResponse {
         private Long slotId;
         private LocalTime startTime;
@@ -288,7 +291,62 @@ public class Dto {
         public String getPatientName() { return patientName; }
     }
 
+    // ── Patient History ───────────────────────────────────────────────────────
+
+    // GET /patients/{id}/history
+    public static class PatientHistoryResponse {
+
+        // Appointment info — always present
+        private Long appointmentId;
+        private String status;
+        private LocalDate appointmentDate;
+        private LocalTime startTime;
+        private LocalTime endTime;
+        private String doctorName;
+        private String doctorSpeciality;
+        private Long rescheduledToAppointmentId;
+
+        // Visit info — only present when status is COMPLETED and a visit was recorded
+        private Long visitId;
+        private String diagnosis;
+        private String prescription;
+        private LocalDateTime recordedAt;
+
+        public PatientHistoryResponse(Long appointmentId, String status, LocalDate appointmentDate,
+                                      LocalTime startTime, LocalTime endTime, String doctorName,
+                                      String doctorSpeciality, Long rescheduledToAppointmentId,
+                                      Long visitId, String diagnosis, String prescription,
+                                      LocalDateTime recordedAt) {
+            this.appointmentId = appointmentId;
+            this.status = status;
+            this.appointmentDate = appointmentDate;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.doctorName = doctorName;
+            this.doctorSpeciality = doctorSpeciality;
+            this.rescheduledToAppointmentId = rescheduledToAppointmentId;
+            this.visitId = visitId;
+            this.diagnosis = diagnosis;
+            this.prescription = prescription;
+            this.recordedAt = recordedAt;
+        }
+
+        public Long getAppointmentId() { return appointmentId; }
+        public String getStatus() { return status; }
+        public LocalDate getAppointmentDate() { return appointmentDate; }
+        public LocalTime getStartTime() { return startTime; }
+        public LocalTime getEndTime() { return endTime; }
+        public String getDoctorName() { return doctorName; }
+        public String getDoctorSpeciality() { return doctorSpeciality; }
+        public Long getRescheduledToAppointmentId() { return rescheduledToAppointmentId; }
+        public Long getVisitId() { return visitId; }
+        public String getDiagnosis() { return diagnosis; }
+        public String getPrescription() { return prescription; }
+        public LocalDateTime getRecordedAt() { return recordedAt; }
+    }
+
     // ── Error ─────────────────────────────────────────────────────────────────
+
     // GlobalExceptionHandler response
     public static class ErrorResponse {
         private int status;

@@ -3,10 +3,7 @@ package com.clinic.Clinic_Appointment.controller;
 import com.clinic.Clinic_Appointment.dto.Dto;
 import com.clinic.Clinic_Appointment.service.VisitRecordService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -21,7 +18,7 @@ public class VisitRecordController {
     }
 
     @GetMapping("/{patientId}/history")
-    public ResponseEntity<List<Dto.VisitRecordResponse>> getPatientHistory(@PathVariable Long patientId) {
+    public ResponseEntity<List<Dto.PatientHistoryResponse>> getPatientHistory(@PathVariable Long patientId) {
         return ResponseEntity.ok(visitRecordService.getPatientHistory(patientId));
     }
 }

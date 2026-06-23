@@ -42,4 +42,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
         ORDER BY a.slot.slotDate DESC
     """)
     List<Appointment> findCompletedByPatientId(@Param("patientId") Long patientId);
+
+    // All appointments for a patient regardless of status for full history view
+    @Query("""
+        SELECT a FROM Appointment a
+        WHERE a.patient.id = :patientId
+        ORDER BY a.slot.slotDate DESC
+    """)
+    List<Appointment> findAllByPatientId(@Param("patientId") Long patientId);
 }
