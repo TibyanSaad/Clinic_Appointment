@@ -4,7 +4,7 @@ import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
@@ -14,6 +14,7 @@ import java.util.List;
 
 public class Dto {
 
+    //  for POST/patients to validate the invalid input
     public static class CreatePatientRequest {
         @NotBlank(message = "First name is required")
         private String firstName;
@@ -25,7 +26,7 @@ public class Dto {
         @Past(message = "Birth date must be in the past")
         private LocalDate birthDate;
 
-        private List<@Pattern(regexp = "\\d{7,15}", message = "Invalid phone number") String> phones;
+        private List<@Size(min = 8, max = 8, message = "Phone number must be exactly 8 digits") String> phones;
 
         public String getFirstName() { return firstName; }
         public void setFirstName(String firstName) { this.firstName = firstName; }
@@ -40,6 +41,7 @@ public class Dto {
         public void setPhones(List<String> phones) { this.phones = phones; }
     }
 
+    // POST/patients & GET/patients/{id}
     public static class PatientResponse {
         private Long id;
         private String firstName;
@@ -64,6 +66,7 @@ public class Dto {
 
     // ── Doctor ───────────────────────────────────────────────────────────────
 
+    // POST/doctors
     public static class CreateDoctorRequest {
         @NotBlank(message = "First name is required")
         private String firstName;
@@ -95,7 +98,7 @@ public class Dto {
         public LocalTime getWorkingHoursEnd() { return workingHoursEnd; }
         public void setWorkingHoursEnd(LocalTime workingHoursEnd) { this.workingHoursEnd = workingHoursEnd; }
     }
-
+    // POST /doctors & GET /doctors/{id}
     public static class DoctorResponse {
         private Long id;
         private String firstName;
@@ -124,6 +127,7 @@ public class Dto {
 
     // ── Appointment ──────────────────────────────────────────────────────────
 
+    //POST /appointments
     public static class BookAppointmentRequest {
         @NotNull(message = "Patient ID is required")
         private Long patientId;
@@ -151,6 +155,7 @@ public class Dto {
         public void setStartTime(LocalTime startTime) { this.startTime = startTime; }
     }
 
+    //POST /appointments/{id}/reschedule
     public static class RescheduleRequest {
         @NotNull(message = "New date is required")
         @FutureOrPresent(message = "New date must not be in the past")
@@ -165,7 +170,7 @@ public class Dto {
         public LocalTime getNewStartTime() { return newStartTime; }
         public void setNewStartTime(LocalTime newStartTime) { this.newStartTime = newStartTime; }
     }
-
+    // POST /appointments, POST /appointments/{id}/cancel, POST /appointments/{id}/reschedule & POST /appointments/{id}/complete
     public static class AppointmentResponse {
         private Long appointmentId;
         private String status;
@@ -207,6 +212,7 @@ public class Dto {
 
     // ── Visit Record ─────────────────────────────────────────────────────────
 
+    // POST /appointments/{id}/visit
     public static class RecordVisitRequest {
         @NotBlank(message = "Diagnosis is required")
         private String diagnosis;
@@ -219,7 +225,7 @@ public class Dto {
         public String getPrescription() { return prescription; }
         public void setPrescription(String prescription) { this.prescription = prescription; }
     }
-
+    // POST /appointments/{id}/visit & GET /patients/{id}/history
     public static class VisitRecordResponse {
         private Long visitId;
         private Long appointmentId;
@@ -255,6 +261,7 @@ public class Dto {
 
     // ── Schedule ─────────────────────────────────────────────────────────────
 
+    //GET /doctors/{id}/schedule?date=
     public static class ScheduleSlotResponse {
         private Long slotId;
         private LocalTime startTime;
@@ -282,7 +289,7 @@ public class Dto {
     }
 
     // ── Error ─────────────────────────────────────────────────────────────────
-
+    // GlobalExceptionHandler response
     public static class ErrorResponse {
         private int status;
         private String error;

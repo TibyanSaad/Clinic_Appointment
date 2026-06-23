@@ -20,6 +20,7 @@ public class Appointment {
     private Status status;
 
     // Points to the NEW appointment this was rescheduled to
+    // foreign key set
     @ManyToOne
     @JoinColumn(name = "FK_RESCHEDULE_ID")
     private Appointment rescheduledTo;

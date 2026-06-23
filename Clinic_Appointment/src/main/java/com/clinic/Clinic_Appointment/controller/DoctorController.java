@@ -37,6 +37,7 @@ public class DoctorController {
     @GetMapping("/{doctorId}/schedule")
     public ResponseEntity<List<Dto.ScheduleSlotResponse>> getSchedule(
             @PathVariable Long doctorId,
+            // ISO date format is yyyy-mm-dd
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(appointmentService.getDoctorSchedule(doctorId, date));
     }

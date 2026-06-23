@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    // Check if a patient already has an active (SCHEDULED) appointment with the same doctor on the same day
+    // Check if a patient already has an active SCHEDULED appointment with the same doctor on the same day
     @Query("""
         SELECT COUNT(a) > 0 FROM Appointment a
         WHERE a.patient.id = :patientId
@@ -19,13 +19,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
         AND a.slot.slotDate = :date
         AND a.status = 'SCHEDULED'
     """)
+    //fields its checking
     boolean existsActiveAppointmentForPatientAndDoctorOnDate(
             @Param("patientId") Long patientId,
             @Param("doctorId") Long doctorId,
             @Param("date") LocalDate date
     );
 
-    // Find the active (SCHEDULED) appointment for a given slot — used for schedule view
+    // Find the active SCHEDULED appointment for a given slot (used for schedule view)
     @Query("""
         SELECT a FROM Appointment a
         WHERE a.slot.id = :slotId

@@ -10,9 +10,12 @@ import java.util.Optional;
 
 public interface VisitRecordRepository extends JpaRepository<VisitRecord, Long> {
 
+    // Does a visit record exist for this appointment
     boolean existsByAppointmentId(Long appointmentId);
 
+    //get visit records order by desc (newest at the top) for a patient
     List<VisitRecord> findByAppointmentPatientIdOrderByRecordedAtDesc(Long patientId);
 
+    //get the visit record for a specific appointment
     Optional<VisitRecord> findByAppointmentId(Long appointmentId);
 }

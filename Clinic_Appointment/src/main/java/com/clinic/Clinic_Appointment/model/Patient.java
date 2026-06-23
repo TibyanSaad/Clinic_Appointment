@@ -23,6 +23,7 @@ public class Patient {
     @Column(name = "BIRTHDATE", nullable = false)
     private LocalDate birthDate;
 
+    //mapped to patient in patient phone
     @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL)
     private List<PatientPhone> phones;
 

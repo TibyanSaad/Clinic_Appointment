@@ -15,6 +15,7 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
     private final VisitRecordService visitRecordService;
 
+    // class constructor
     public AppointmentController(AppointmentService appointmentService, VisitRecordService visitRecordService) {
         this.appointmentService = appointmentService;
         this.visitRecordService = visitRecordService;
@@ -22,6 +23,7 @@ public class AppointmentController {
 
     @PostMapping
     public ResponseEntity<Dto.AppointmentResponse> bookAppointment(
+            // to check if all the received requests are valid
             @Valid @RequestBody Dto.BookAppointmentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(appointmentService.bookAppointment(request));
     }

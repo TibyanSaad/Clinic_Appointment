@@ -22,6 +22,7 @@ public class VisitRecord {
     @Column(name = "RECORDED_AT", nullable = false)
     private LocalDateTime recordedAt;
 
+    // so each appointment points to a single visit
     @OneToOne
     @JoinColumn(name = "FK_APPOINTMENT_ID", nullable = false, unique = true)
     private Appointment appointment;

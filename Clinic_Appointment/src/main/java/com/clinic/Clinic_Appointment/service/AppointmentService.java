@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 @Service
 public class AppointmentService {
 
+    // to set the end time as 30mins after start time
     private static final int SLOT_DURATION_MINUTES = 30;
 
     private final AppointmentRepository appointmentRepository;
@@ -38,14 +39,16 @@ public class AppointmentService {
 
     @Transactional
     public Dto.AppointmentResponse bookAppointment(Dto.BookAppointmentRequest request) {
+        //passing request check
         Patient patient = patientService.findById(request.getPatientId());
         Doctor doctor = doctorService.findById(request.getDoctorId());
 
+        // calculate time slot
         LocalDate date = request.getDate();
         LocalTime startTime = request.getStartTime();
         LocalTime endTime = startTime.plusMinutes(SLOT_DURATION_MINUTES);
 
-        // Check patient doesn't already have an active appointment with this doctor on this day
+        // Check patient doesnt already have an active appointment with this doctor on this day
         boolean alreadyBookedSameDoctor = appointmentRepository.existsActiveAppointmentForPatientAndDoctorOnDate(
                 patient.getId(), doctor.getId(), date
         );
@@ -75,7 +78,7 @@ public class AppointmentService {
             );
         }
 
-        // All checks passed — create slot and book appointment
+        // All checks passed, create slot and book appointment
         AppointmentSlot slot = slotService.createSlot(doctor, date, startTime);
 
         Appointment appointment = new Appointment();
@@ -87,6 +90,7 @@ public class AppointmentService {
         return toResponse(appointmentRepository.save(appointment));
     }
 
+    // cancelling an appointment
     @Transactional
     public Dto.AppointmentResponse cancelAppointment(Long appointmentId) {
         Appointment appointment = findById(appointmentId);
@@ -103,6 +107,7 @@ public class AppointmentService {
         return toResponse(appointmentRepository.save(appointment));
     }
 
+    //change appointment
     @Transactional
     public Dto.AppointmentResponse rescheduleAppointment(Long appointmentId, Dto.RescheduleRequest request) {
         Appointment oldAppointment = findById(appointmentId);
@@ -188,6 +193,7 @@ public class AppointmentService {
         return toResponse(appointmentRepository.save(appointment));
     }
 
+    //Get a doctors full schedule for a specific date, with patient info for each booked slot
     public List<Dto.ScheduleSlotResponse> getDoctorSchedule(Long doctorId, LocalDate date) {
         doctorService.findById(doctorId);
 
@@ -215,6 +221,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new NotFoundException("Appointment not found with ID: " + appointmentId));
     }
 
+    // convert an Appointment entity into a AppointmentResponse dto to send to the client
     private Dto.AppointmentResponse toResponse(Appointment a) {
         Long rescheduledToId = a.getRescheduledTo() != null ? a.getRescheduledTo().getId() : null;
         return new Dto.AppointmentResponse(

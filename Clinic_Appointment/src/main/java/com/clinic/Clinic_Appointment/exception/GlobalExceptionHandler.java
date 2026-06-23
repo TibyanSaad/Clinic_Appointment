@@ -14,14 +14,17 @@ public class GlobalExceptionHandler {
 
     // ── Custom exceptions ─────────────────────────────────────────────────────
 
+    //if record not found
     public static class NotFoundException extends RuntimeException {
         public NotFoundException(String message) { super(message); }
     }
 
+    // business rule conflict
     public static class ConflictException extends RuntimeException {
         public ConflictException(String message) { super(message); }
     }
 
+    //doing wrong stuff
     public static class BadRequestException extends RuntimeException {
         public BadRequestException(String message) { super(message); }
     }
