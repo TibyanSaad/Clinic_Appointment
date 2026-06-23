@@ -1,12 +1,17 @@
 # Change Log
 
 ## Version[0.0.4] - 23-06-2026
-
+### Fixed
+- `AppointmentSlotRepository.java`: removed `existsByDoctorIdAndSlotDateAndStartTimeAndIsAvailableFalse()`. Added `existsDoctorOverlappingSlot()` — rejects booking if doctor has any active slot overlapping the requested time range. 
+-  Added `existsPatientOverlappingAppointment()` — rejects booking if patient is already booked with any doctor in the same time range. Both use interval overlap formula `existingStart < newEnd AND existingEnd > newStart`.
+- `AppointmentService.java`: added `SLOT_DURATION_MINUTES` constant to compute `endTime` before slot creation so conflict checks run before any DB writes. 
+-  Applied both overlap checks in `bookAppointment()` and `rescheduleAppointment()`.
 
 ## Version[0.0.3] - 22-06-2026
-### Changed
+### Fixed
 - `AppointmentSlot.java`: removed `isAvailable` field. Slots now only exist in the table when an active appointment occupies them, so availability is determined by the slot's existence and the appointment's status rather than a boolean flag.
-- `SlotService.java`: removed `generateSlots()` — slots are no longer pre-generated for all 30-minute intervals within working hours. `createSlot()` is now the only entry point for slot creation and is called at booking time. Added overlap conflict check using `existsByDoctorIdAndSlotDateAndTimeOverlap()` to reject any booking whose requested time falls within an existing active slot's 30-minute window (e.g. a request for 09:05 is rejected if an active slot runs 09:00–09:30). Removed `markAvailable()` and `markUnavailable()` helpers; cancellation and rescheduling now delete the slot row instead of toggling a flag.
+- `SlotService.java`: removed `generateSlots()` — slots are no longer pre-generated for all 30-minute intervals within working hours. `createSlot()` is now the only entry point for slot creation and is called at booking time. 
+-  Added overlap conflict check using `existsByDoctorIdAndSlotDateAndTimeOverlap()` to reject any booking whose requested time falls within an existing active slot's 30-minute window (e.g. a request for 09:05 is rejected if an active slot runs 09:00–09:30). Removed `markAvailable()` and `markUnavailable()` helpers; cancellation and rescheduling now delete the slot row instead of toggling a flag.
 - `AppointmentSlotRepository.java`: replaced `existsByDoctorIdAndSlotDateAndStartTimeAndIsAvailableFalse()` with a JPQL overlap query `existsByDoctorIdAndSlotDateAndTimeOverlap()` that checks whether a requested start time falls within any active slot's `[startTime, endTime)` range for that doctor on that date.
 - `AppointmentService.java`: updated `cancelAppointment()` and `rescheduleAppointment()` to delete the old slot row via `slotRepository.delete()` rather than marking it available, keeping the `APPOINTMENT_SLOTS` table lean — only actively booked slots are stored at any time.
 - `DoctorController.java`: removed `POST /doctors/{doctorId}/slots` endpoint since slot generation is no longer a manual step.
